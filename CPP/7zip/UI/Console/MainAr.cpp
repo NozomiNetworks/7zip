@@ -1,5 +1,13 @@
 // MainAr.cpp
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <unistd.h>
+
+#define NOZOMI_7Z_VERSION "0.0.7"
+
 #include "StdAfx.h"
 
 #ifdef _WIN32
@@ -9,6 +17,7 @@
 
 #include "../../../Common/MyException.h"
 #include "../../../Common/StdOutStream.h"
+#include "../../../Common/StdInStream.h"
 
 #include "../../../Windows/ErrorMsg.h"
 #include "../../../Windows/NtCheck.h"
@@ -23,6 +32,9 @@ using namespace NWindows;
 extern
 CStdOutStream *g_StdStream;
 CStdOutStream *g_StdStream = NULL;
+extern
+CStdInStream *g_StdInStream;
+CStdInStream *g_StdInStream = NULL;
 extern
 CStdOutStream *g_ErrStream;
 CStdOutStream *g_ErrStream = NULL;
@@ -100,6 +112,9 @@ static inline bool CheckIsa()
   */
 }
 
+int MainWrapper(int numArgs, char *args[]);
+int MainLoop(int numArgs, char *args[]);
+
 int Z7_CDECL main
 (
   #ifndef _WIN32
@@ -121,8 +136,20 @@ int Z7_CDECL main
   NT_CHECK
 
   NConsoleClose::CCtrlHandlerSetter ctrlHandlerSetter;
+
+  const int mainLoopRetVal = MainLoop(numArgs, args);
+  if (mainLoopRetVal == -1)
+  {
+    return MainWrapper(numArgs, args);
+  }
+
+  return mainLoopRetVal;
+}
+
+int MainWrapper(int numArgs, char *args[])
+{
   int res = 0;
-  
+
   try
   {
     #ifdef _WIN32
@@ -232,4 +259,85 @@ int Z7_CDECL main
   }
 
   return res;
+}
+
+int MainLoop(int numArgs, char *args[])
+{
+  if (numArgs == 2)
+  {
+    if (std::string(args[1]) == "iv")
+    {
+      std::cout << NOZOMI_7Z_VERSION << std::endl;
+      return 0;
+    }
+  }
+  else if (numArgs == 3)
+  {
+    if (std::string(args[1]) == "in")
+    {
+      // args[2] is a full-path of a temporary file that was used as a lock.
+      // might be repurposed later
+
+      // const std::string lockFilePath = args[2];
+      std::string buffer;
+      while (std::getline(std::cin, buffer))
+      {
+        if (buffer == "exit")
+        {
+          return 0;
+        }
+        else
+        {
+          std::size_t pos = 0;
+          std::string arg;
+          std::string s(buffer);
+          const std::string delimiter = " ";
+          std::vector<std::string> parts;
+          bool foundLast = false;
+          while ((pos = s.find(delimiter)) != std::string::npos && !foundLast)
+          {
+            if (s.find('\"') < pos)
+            {
+              foundLast = true;
+            }
+            else
+            {
+              arg = s.substr(0, pos);
+              parts.push_back(arg);
+              s.erase(0, pos + delimiter.length());
+            }
+          }
+          if (s.size() > 2 && s[0] == '\"' && s[s.size() - 1] == '\"')
+          {
+            s = s.substr(1, s.size() - 2);
+          }
+          parts.push_back(s.substr(0, s.size()));
+          std::vector<char*> vecArgs;
+          char dummy1stArg[] = "7zz";
+          vecArgs.push_back(dummy1stArg);
+          bool hasFoundFilePath = false;
+          std::string filePath;
+          for (unsigned long ii = 0; ii < parts.size(); ++ii)
+          {
+            if (!hasFoundFilePath && ii >= 1 && !parts[ii].empty() && parts[ii][0] != '-')
+            {
+              filePath = parts[ii];
+              hasFoundFilePath = true;
+            }
+            char* partData = const_cast<char*>(parts[ii].data());
+            vecArgs.push_back(partData);
+          }
+          MainWrapper(
+            static_cast<int>(parts.size() + 1),
+            &vecArgs[0]
+          );
+
+          // this string is used by n2os_sandbox as an end-of-output marker
+          printf("Nozomi-7zz done.\n");
+          fflush(stdout);
+        }
+      }
+    }
+  }
+  return -1;
 }

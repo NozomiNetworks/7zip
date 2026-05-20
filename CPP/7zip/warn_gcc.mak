@@ -33,8 +33,7 @@ CFLAGS_WARN_GCC_8 = $(CFLAGS_WARN_GCC_7)\
   -Wcast-align=strict \
   -Wmissing-attributes
 
-CFLAGS_WARN_GCC_9 = $(CFLAGS_WARN_GCC_8)\
-  -Waddress-of-packed-member \
+CFLAGS_WARN_GCC_9 = $(CFLAGS_WARN_GCC_8)
 
 # In C: -Wsign-conversion enabled also by -Wconversion
 #  -Wno-sign-conversion \
