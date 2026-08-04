@@ -6,7 +6,7 @@
 #include <vector>
 #include <unistd.h>
 
-#define NOZOMI_7Z_VERSION "0.0.7"
+#define NOZOMI_7Z_VERSION "0.0.8"
 
 #include "StdAfx.h"
 
